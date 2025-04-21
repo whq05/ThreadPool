@@ -113,24 +113,52 @@ private:
     std::condition_variable cond_;   // 条件变量
 };
 
-// Task类型的前置声明
-class Task;
+//// Task类型的前置声明
+class Result;
 
-// 实现接收提交到线程池的task任务执行完成后的返回值类型Result
-class Result
+// 任务抽象基类
+class Task
 {
 public:
+    Task();
+    ~Task() = default;
+    void exec();
+    //void setResult(Result* res);
+    void setResult(std::shared_ptr<Result> res);
 
-    Result(std::shared_ptr<Task> task, bool isValid = true);
+    // 用户可以自定义任意任务类型，从Task继承，重写run方法，实现自定义任务处理
+    virtual Any run() = 0;
+
+    // private:
+    //     Result* result_;
+public:
+    //Result* result_;
+    std::shared_ptr<Result> result_;
+};
+
+// 实现接收提交到线程池的task任务执行完成后的返回值类型Result
+class Result : public std::enable_shared_from_this<Result>
+{
+public:
+    static std::shared_ptr<Result> create(std::shared_ptr<Task> task, bool isValid) {
+        // 使用new创建Result对象，利用成员函数可访问私有构造函数的特性
+        std::shared_ptr<Result> res(new Result(task, isValid));
+        res->task_->setResult(res);
+        return res;
+    }
+private:
+    Result(std::shared_ptr<Task> task, bool isValid)
+        : task_(task), isValid_(isValid) {
+    }
+public:
     ~Result() = default;
 
     // 禁用拷贝构造函数和拷贝赋值运算符
     Result(const Result&) = delete;
     Result& operator=(const Result&) = delete;
-
     // 禁用移动构造函数和移动赋值运算符
-    Result(Result&&) = default;
-    Result& operator=(Result&&) = default;
+    Result(Result&&) = delete;
+    Result& operator=(Result&&) = delete;
 
     // 问题一：setVal方法，获取任务执行完的返回值
     void setVal(Any any);
@@ -143,22 +171,6 @@ private:
     Semaphore sem_;   // 线程通信信号量
     std::shared_ptr<Task> task_;   // 指向对应获取返回值的任务对象 
     std::atomic<bool> isValid_;   // 返回值是否有效
-};
-
-// 任务抽象基类
-class Task
-{
-public:
-    Task();
-    ~Task() = default;
-    void exec();
-    void setResult(Result* res);
-
-    // 用户可以自定义任意任务类型，从Task继承，重写run方法，实现自定义任务处理
-    virtual Any run() = 0;
-
-private:
-    Result* result_;
 };
 
 
@@ -226,7 +238,8 @@ public:
     void setThreadSizeThreshold(int threshold);
 
     // 给线程池提交任务
-    Result submitTask(std::shared_ptr<Task> sp);
+    //Result& submitTask(std::shared_ptr<Task> sp);
+     std::shared_ptr<Result> submitTask(std::shared_ptr<Task> sp);
 
     // 启动线程池
     void start(int initThreadSize = std::thread::hardware_concurrency());

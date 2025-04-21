@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <chrono>
-#include <unistd.h>
+//#include <unistd.h>
 
 const int TASK_MAX_THRESHOLD = INT32_MAX; // 任务数量最大阈值
 const int THREAD_MAX_THRESHOLD = 1024;    // 线程数量最大阈值
@@ -79,10 +79,11 @@ void ThreadPool::setThreadSizeThreshold(int threshold)
 }
 
 // 给线程池提交任务    用户调用该接口，传入任务对象，生产任务
-Result ThreadPool::submitTask(std::shared_ptr<Task> sp)
+std::shared_ptr<Result> ThreadPool::submitTask(std::shared_ptr<Task> sp)
 {
     // 获取锁
     std::unique_lock<std::mutex> lock(taskQueMtx_);
+
 
     // 线程的通信  等待任务队列有空余   wait   wait_for   wait_until
     // 用户提交任务，最长不能阻塞超过1s，否则判断提交任务失败，返回
@@ -94,7 +95,9 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp)
         // 表示notFull_等待1s种，条件依然没有满足
         std::cerr << "Task queue is full, submit task failed!" << std::endl;
         // return task->getResult();  // Task  Result   线程执行完task，task对象就被析构掉了
-        return Result(sp, false);
+
+        auto result = Result::create(sp, false);
+        return result;
     }
 
     // 如果有空余，把任务放入任务队列中
@@ -119,9 +122,8 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp)
         curThreadSize_++;
         idleThreadSize_++;
     }
-
-    // 返回任务的Result对象
-    return Result(sp);
+    auto result = Result::create(sp, true);
+    return result;
 }
 
 // 开启线程池
@@ -180,7 +182,7 @@ void ThreadPool::threadFunc(int threadid)
                 if (!isPoolRunning_)
                 {
                     threads_.erase(threadid);
-					--curThreadSize_;
+                    --curThreadSize_;
                     std::cout << "threadid:" << std::this_thread::get_id() << " exit!"
                         << std::endl;
                     exitCond_.notify_all(); // 通知所有线程退出
@@ -241,6 +243,7 @@ void ThreadPool::threadFunc(int threadid)
         // 当前线程负责执行这个任务
         if (task != nullptr)
         {
+            std::cout << "Task::exec1 task " << task << std::endl;
             task->exec();
         }
 
@@ -285,7 +288,7 @@ int Thread::getId() const
 }
 
 
-/////////////////  Task方法实现
+///////////////  Task方法实现
 Task::Task() : result_(nullptr)
 {
 
@@ -300,18 +303,13 @@ void Task::exec()
 }
 
 
-void Task::setResult(Result *res)
+ void Task::setResult(std::shared_ptr<Result> res)
+//void Task::setResult(Result* res)
 {
     result_ = res;
 }
 
 /////////////////   Result方法的实现
-Result::Result(std::shared_ptr<Task> task, bool isValid) : task_(task), isValid_(isValid)
-{
-    std::cout<< "Result::Result task " << task << std::endl;
-
-    task_->setResult(this); // 这里是多态调用
-}
 
 Any Result::get()   // 用户调用的
 {
