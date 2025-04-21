@@ -96,8 +96,13 @@ std::shared_ptr<Result> ThreadPool::submitTask(std::shared_ptr<Task> sp)
         std::cerr << "Task queue is full, submit task failed!" << std::endl;
         // return task->getResult();  // Task  Result   线程执行完task，task对象就被析构掉了
 
-        auto result = Result::create(sp, false);
-        return result;
+        // auto result = Result::create(sp, false);
+        // return result;
+        // return std::make_shared<Result>(sp, false);
+        auto res = std::make_shared<Result>(sp, false);
+        res->bindResult(); // 显式调用绑定
+        return res;
+
     }
 
     // 如果有空余，把任务放入任务队列中
@@ -122,8 +127,12 @@ std::shared_ptr<Result> ThreadPool::submitTask(std::shared_ptr<Task> sp)
         curThreadSize_++;
         idleThreadSize_++;
     }
-    auto result = Result::create(sp, true);
-    return result;
+    // auto result = Result::create(sp, true);
+    // return result;
+    // return std::make_shared<Result>(sp, true);
+    auto res = std::make_shared<Result>(sp, true);
+    res->bindResult(); // 显式调用绑定
+    return res;
 }
 
 // 开启线程池
@@ -243,7 +252,6 @@ void ThreadPool::threadFunc(int threadid)
         // 当前线程负责执行这个任务
         if (task != nullptr)
         {
-            std::cout << "Task::exec1 task " << task << std::endl;
             task->exec();
         }
 
@@ -304,7 +312,7 @@ void Task::exec()
 
 
  void Task::setResult(std::shared_ptr<Result> res)
-//void Task::setResult(Result* res)
+// void Task::setResult(Result* res)
 {
     result_ = res;
 }

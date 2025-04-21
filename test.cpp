@@ -68,8 +68,8 @@ int main()
         // pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
         // pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
 
-        //uLong sum1 = res1->get().cast_<uLong>();
-        //cout << sum1 << endl; 
+        uLong sum1 = res1->get().cast_<uLong>();
+        cout << sum1 << endl; 
     }
     cout << "main over!" << endl;
     getchar();

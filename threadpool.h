@@ -140,18 +140,16 @@ public:
 class Result : public std::enable_shared_from_this<Result>
 {
 public:
-    static std::shared_ptr<Result> create(std::shared_ptr<Task> task, bool isValid) {
-        // 使用new创建Result对象，利用成员函数可访问私有构造函数的特性
-        std::shared_ptr<Result> res(new Result(task, isValid));
-        res->task_->setResult(res);
-        return res;
-    }
-private:
     Result(std::shared_ptr<Task> task, bool isValid)
         : task_(task), isValid_(isValid) {
     }
-public:
+
     ~Result() = default;
+
+    // 这里的析构函数是为了调试使用的
+    // ~Result() {
+    //     std::cout << "Result destructor called!" << std::endl;
+    // }   
 
     // 禁用拷贝构造函数和拷贝赋值运算符
     Result(const Result&) = delete;
@@ -159,6 +157,11 @@ public:
     // 禁用移动构造函数和移动赋值运算符
     Result(Result&&) = delete;
     Result& operator=(Result&&) = delete;
+
+    void bindResult() {
+        if (auto task = task_.lock())
+            task->setResult(shared_from_this());
+    }
 
     // 问题一：setVal方法，获取任务执行完的返回值
     void setVal(Any any);
@@ -169,7 +172,7 @@ public:
 private:
     Any any_;   // 存储任务的返回值
     Semaphore sem_;   // 线程通信信号量
-    std::shared_ptr<Task> task_;   // 指向对应获取返回值的任务对象 
+    std::weak_ptr<Task> task_;   // 指向对应获取返回值的任务对象 
     std::atomic<bool> isValid_;   // 返回值是否有效
 };
 
