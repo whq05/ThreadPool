@@ -10,6 +10,7 @@
 #include <thread>
 #include <functional>
 #include <unordered_map>
+#include <iostream>
 
 class Any
 {
@@ -69,6 +70,7 @@ class Semaphore
 {
 public:
     Semaphore(int limit = 0) : resLimit_(limit), isExit_(false) {}
+    // Semaphore(int limit = 0) : resLimit_(limit) {}
 
     ~Semaphore()
     {
@@ -118,36 +120,17 @@ class Task;
 class Result
 {
 public:
+
     Result(std::shared_ptr<Task> task, bool isValid = true);
     ~Result() = default;
 
-    //// 禁用拷贝构造函数和拷贝赋值运算符
-    //Result(const Result&) = delete;
-    //Result& operator=(const Result&) = delete;
-
-       // 禁用拷贝
+    // 禁用拷贝构造函数和拷贝赋值运算符
     Result(const Result&) = delete;
     Result& operator=(const Result&) = delete;
 
-    // 启用移动
-    // 移动构造函数
-    Result(Result&& other) noexcept
-        : any_(std::move(other.any_)),
-        sem_(std::move(other.sem_)),  // 移动 unique_ptr
-        task_(std::move(other.task_)),
-        isValid_(other.isValid_.load()) {
-    }
-
-    // 移动赋值运算符
-    Result& operator=(Result&& other) noexcept {
-        if (this != &other) {
-            any_ = std::move(other.any_);
-            sem_ = std::move(other.sem_);
-            task_ = std::move(other.task_);
-            isValid_.store(other.isValid_.load());
-        }
-        return *this;
-    }
+    // 禁用移动构造函数和移动赋值运算符
+    Result(Result&&) = default;
+    Result& operator=(Result&&) = default;
 
     // 问题一：setVal方法，获取任务执行完的返回值
     void setVal(Any any);
@@ -157,8 +140,7 @@ public:
 
 private:
     Any any_;   // 存储任务的返回值
-    //Semaphore sem_;   // 线程通信信号量
-    std::unique_ptr<Semaphore> sem_;
+    Semaphore sem_;   // 线程通信信号量
     std::shared_ptr<Task> task_;   // 指向对应获取返回值的任务对象 
     std::atomic<bool> isValid_;   // 返回值是否有效
 };

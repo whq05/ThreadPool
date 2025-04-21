@@ -33,7 +33,7 @@ public:
     {
         std::cout << "tid:" << std::this_thread::get_id()
             << "begin!" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         uLong sum = 0;
         for (uLong i = begin_; i <= end_; ++i)
         {
@@ -59,17 +59,17 @@ int main()
         ThreadPool pool;
         pool.setMode(PoolMode::MODE_CACHED);
         // 开始启动线程池
-        pool.start(2); // 线程池创建2个线程
+        pool.start(1); // 线程池创建2个线程
 
         // linux上，这些Result对象也是局部对象，要析构的！！！
         Result res1 = pool.submitTask(std::make_shared<MyTask>(1, 100000000));
         Result res2 = pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
         pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
-        pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
-        pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
+        // pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
+        // pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
 
-        //uLong sum1 = res1.get().cast_<uLong>();
-        //cout << sum1 << endl; 
+        uLong sum1 = res1.get().cast_<uLong>();
+        cout << sum1 << endl; 
     }
     cout << "main over!" << endl;
     getchar();

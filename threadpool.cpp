@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <chrono>
+#include <unistd.h>
 
 const int TASK_MAX_THRESHOLD = INT32_MAX; // 任务数量最大阈值
 const int THREAD_MAX_THRESHOLD = 1024;    // 线程数量最大阈值
@@ -121,7 +122,6 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp)
 
     // 返回任务的Result对象
     return Result(sp);
-    // return task->getResult();
 }
 
 // 开启线程池
@@ -223,7 +223,7 @@ void ThreadPool::threadFunc(int threadid)
             std::cout << "tid:" << std::this_thread::get_id()
                 << "获取任务成功..." << std::endl;
 
-            // 从任务队列种取一个任务出来
+            // 从任务队列中取一个任务出来
             task = taskQue_.front();
             taskQue_.pop();
             --taskSize_;
@@ -300,15 +300,17 @@ void Task::exec()
 }
 
 
-void Task::setResult(Result* res)
+void Task::setResult(Result *res)
 {
     result_ = res;
 }
 
 /////////////////   Result方法的实现
-Result::Result(std::shared_ptr<Task> task, bool isValid) : task_(task), isValid_(isValid), sem_(std::make_unique<Semaphore>())
+Result::Result(std::shared_ptr<Task> task, bool isValid) : task_(task), isValid_(isValid)
 {
-    task_->setResult(this);
+    std::cout<< "Result::Result task " << task << std::endl;
+
+    task_->setResult(this); // 这里是多态调用
 }
 
 Any Result::get()   // 用户调用的
@@ -317,7 +319,7 @@ Any Result::get()   // 用户调用的
     {
         return "";
     }
-    sem_->wait(); // 等待任务执行完，task任务如果没有执行完，这里会阻塞用户的线程
+    sem_.wait();
     return std::move(any_); // 返回任务的返回值
 }
 
@@ -325,6 +327,6 @@ void Result::setVal(Any any)    // 谁调用的呢
 {
     // 存储task的返回值
     this->any_ = std::move(any);
-    sem_->post(); // 已经获取的任务的返回值，增加信号量资源
+    sem_.post();
 }
 
