@@ -2,7 +2,6 @@
 
 #include <iostream>
 #include <chrono>
-//#include <unistd.h>
 
 const int TASK_MAX_THRESHOLD = INT32_MAX; // 任务数量最大阈值
 const int THREAD_MAX_THRESHOLD = 1024;    // 线程数量最大阈值
@@ -84,7 +83,6 @@ std::shared_ptr<Result> ThreadPool::submitTask(std::shared_ptr<Task> sp)
     // 获取锁
     std::unique_lock<std::mutex> lock(taskQueMtx_);
 
-
     // 线程的通信  等待任务队列有空余   wait   wait_for   wait_until
     // 用户提交任务，最长不能阻塞超过1s，否则判断提交任务失败，返回
 
@@ -94,15 +92,7 @@ std::shared_ptr<Result> ThreadPool::submitTask(std::shared_ptr<Task> sp)
     {
         // 表示notFull_等待1s种，条件依然没有满足
         std::cerr << "Task queue is full, submit task failed!" << std::endl;
-        // return task->getResult();  // Task  Result   线程执行完task，task对象就被析构掉了
-
-        // auto result = Result::create(sp, false);
-        // return result;
-        // return std::make_shared<Result>(sp, false);
-        auto res = std::make_shared<Result>(sp, false);
-        res->bindResult(); // 显式调用绑定
-        return res;
-
+        return std::make_shared<Result>(false);
     }
 
     // 如果有空余，把任务放入任务队列中
@@ -127,11 +117,9 @@ std::shared_ptr<Result> ThreadPool::submitTask(std::shared_ptr<Task> sp)
         curThreadSize_++;
         idleThreadSize_++;
     }
-    // auto result = Result::create(sp, true);
-    // return result;
-    // return std::make_shared<Result>(sp, true);
-    auto res = std::make_shared<Result>(sp, true);
-    res->bindResult(); // 显式调用绑定
+
+    auto res = std::make_shared<Result>();
+    sp->setResult(res);
     return res;
 }
 
@@ -191,7 +179,7 @@ void ThreadPool::threadFunc(int threadid)
                 if (!isPoolRunning_)
                 {
                     threads_.erase(threadid);
-                    --curThreadSize_;
+					--curThreadSize_;
                     std::cout << "threadid:" << std::this_thread::get_id() << " exit!"
                         << std::endl;
                     exitCond_.notify_all(); // 通知所有线程退出
@@ -234,7 +222,7 @@ void ThreadPool::threadFunc(int threadid)
             std::cout << "tid:" << std::this_thread::get_id()
                 << "获取任务成功..." << std::endl;
 
-            // 从任务队列中取一个任务出来
+            // 从任务队列种取一个任务出来
             task = taskQue_.front();
             taskQue_.pop();
             --taskSize_;
@@ -287,7 +275,6 @@ void Thread::start()
     // 创建一个线程来执行一个线程函数 pthread_create
     std::thread t(func_, threadId_);
     t.detach(); // 分离线程，线程结束后，资源自动回收
-    // t.join();  // 等待线程结束，阻塞当前线程
 }
 
 int Thread::getId() const
@@ -296,7 +283,7 @@ int Thread::getId() const
 }
 
 
-///////////////  Task方法实现
+/////////////////  Task方法实现
 Task::Task() : result_(nullptr)
 {
 
@@ -311,13 +298,16 @@ void Task::exec()
 }
 
 
- void Task::setResult(std::shared_ptr<Result> res)
-// void Task::setResult(Result* res)
+void Task::setResult(std::shared_ptr<Result> res)
 {
     result_ = res;
 }
 
 /////////////////   Result方法的实现
+Result::Result(bool isValid) : isValid_(isValid)
+{
+    // std::cout << "Result::Result() called" << std::endl;
+}
 
 Any Result::get()   // 用户调用的
 {
@@ -325,7 +315,7 @@ Any Result::get()   // 用户调用的
     {
         return "";
     }
-    sem_.wait();
+    sem_.wait();     // 等待任务执行完，task任务如果没有执行完，这里会阻塞用户的线程
     return std::move(any_); // 返回任务的返回值
 }
 
@@ -333,6 +323,5 @@ void Result::setVal(Any any)    // 谁调用的呢
 {
     // 存储task的返回值
     this->any_ = std::move(any);
-    sem_.post();
+    sem_.post();    // 已经获取的任务的返回值，增加信号量资源
 }
-

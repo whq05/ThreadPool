@@ -33,7 +33,7 @@ public:
     {
         std::cout << "tid:" << std::this_thread::get_id()
             << "begin!" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         uLong sum = 0;
         for (uLong i = begin_; i <= end_; ++i)
         {
@@ -42,31 +42,31 @@ public:
         std::cout << "tid:" << std::this_thread::get_id()
             << "end!" << std::endl;
 
-        return sum;
+        return sum;  
     }
 
 private:
-    int begin_;
-    int end_;
+    int begin_;  
+    int end_;    
 
 };
 
 
 int main()
 {
-
+    
     {
         ThreadPool pool;
         pool.setMode(PoolMode::MODE_CACHED);
         // 开始启动线程池
-        pool.start(1); // 线程池创建2个线程
+        pool.start(3); // 线程池创建3个线程
 
         // linux上，这些Result对象也是局部对象，要析构的！！！
         std::shared_ptr<Result> res1 = pool.submitTask(std::make_shared<MyTask>(1, 100000000));
         std::shared_ptr<Result> res2 = pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
         pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
-        // pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
-        // pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
+        pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
+        pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
 
         uLong sum1 = res1->get().cast_<uLong>();
         cout << sum1 << endl; 
@@ -103,7 +103,7 @@ int main()
         // Master线程合并各个任务结果，输出
         cout << (sum1 + sum2 + sum3) << endl;
     }
-
+    
 
 
     /*uLong sum = 0;
@@ -120,7 +120,7 @@ int main()
     pool.submitTask(std::make_shared<MyTask>());
     pool.submitTask(std::make_shared<MyTask>());
     pool.submitTask(std::make_shared<MyTask>());*/
-
+ 
     getchar();
 
 #endif

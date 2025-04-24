@@ -69,18 +69,24 @@ private:
 class Semaphore
 {
 public:
-    Semaphore(int limit = 0) : resLimit_(limit), isExit_(false) {}
-    // Semaphore(int limit = 0) : resLimit_(limit) {}
+    Semaphore(int limit = 0) : resLimit_(limit)
+    , isExit_(false) 
+    {}
 
     ~Semaphore()
     {
         isExit_ = true;
     }
 
+    
+
     // 获取一个信号量资源
     void wait()
     {
-        if (isExit_) return;
+        if (isExit_) 
+        {
+            return;
+        }
         std::unique_lock<std::mutex> lock(mtx_);
         // 等待信号量有资源，没有资源的话，会阻塞当前线程
         while (resLimit_ <= 0)
@@ -98,7 +104,10 @@ public:
     // 增加一个信号量资源
     void post()
     {
-        if (isExit_) return;
+        if (isExit_) 
+        {
+            return;
+        }
         std::unique_lock<std::mutex> lock(mtx_);
         ++resLimit_;
         // linux下condition_variable的析构函数什么也没做
@@ -113,55 +122,23 @@ private:
     std::condition_variable cond_;   // 条件变量
 };
 
-//// Task类型的前置声明
-class Result;
-
-// 任务抽象基类
-class Task
-{
-public:
-    Task();
-    ~Task() = default;
-    void exec();
-    //void setResult(Result* res);
-    void setResult(std::shared_ptr<Result> res);
-
-    // 用户可以自定义任意任务类型，从Task继承，重写run方法，实现自定义任务处理
-    virtual Any run() = 0;
-
-    // private:
-    //     Result* result_;
-public:
-    //Result* result_;
-    std::shared_ptr<Result> result_;
-};
+// Task类型的前置声明
+class Task;
 
 // 实现接收提交到线程池的task任务执行完成后的返回值类型Result
-class Result : public std::enable_shared_from_this<Result>
+class Result
 {
 public:
-    Result(std::shared_ptr<Task> task, bool isValid)
-        : task_(task), isValid_(isValid) {
-    }
-
+    Result(bool isValid = true);
     ~Result() = default;
-
-    // 这里的析构函数是为了调试使用的
-    // ~Result() {
-    //     std::cout << "Result destructor called!" << std::endl;
-    // }   
 
     // 禁用拷贝构造函数和拷贝赋值运算符
     Result(const Result&) = delete;
     Result& operator=(const Result&) = delete;
+
     // 禁用移动构造函数和移动赋值运算符
     Result(Result&&) = delete;
     Result& operator=(Result&&) = delete;
-
-    void bindResult() {
-        if (auto task = task_.lock())
-            task->setResult(shared_from_this());
-    }
 
     // 问题一：setVal方法，获取任务执行完的返回值
     void setVal(Any any);
@@ -172,8 +149,24 @@ public:
 private:
     Any any_;   // 存储任务的返回值
     Semaphore sem_;   // 线程通信信号量
-    std::weak_ptr<Task> task_;   // 指向对应获取返回值的任务对象 
     std::atomic<bool> isValid_;   // 返回值是否有效
+};
+
+// 任务抽象基类
+class Task
+{
+public:
+    Task();
+    virtual ~Task() = default;
+    void exec();
+    void setResult(std::shared_ptr<Result> res);
+
+    // 用户可以自定义任意任务类型，从Task继承，重写run方法，实现自定义任务处理
+    virtual Any run() = 0;
+
+public:
+    // Result* result_;
+    std::shared_ptr<Result> result_;
 };
 
 
@@ -241,8 +234,7 @@ public:
     void setThreadSizeThreshold(int threshold);
 
     // 给线程池提交任务
-    //Result& submitTask(std::shared_ptr<Task> sp);
-     std::shared_ptr<Result> submitTask(std::shared_ptr<Task> sp);
+    std::shared_ptr<Result> submitTask(std::shared_ptr<Task> sp);
 
     // 启动线程池
     void start(int initThreadSize = std::thread::hardware_concurrency());
